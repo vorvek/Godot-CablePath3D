@@ -1,7 +1,7 @@
 # Godot-CablePath3D
 A simple Editor tool for Godot 4 that allows the user to generate cables, tubes and pipes along any arbitrary path.
 
-![Screenshot of the CablePath3D tool working inside the Godot 4 Editor](readme-img/editor_sample.jpg)
+![Screenshot of the CablePath3D tool working inside the Godot 4 Editor](/readme_img/editor_sample.jpg)
 
 ## Installation
 
