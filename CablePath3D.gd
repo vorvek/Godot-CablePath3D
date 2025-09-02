@@ -109,7 +109,7 @@ func _create_cable_mesh() -> ArrayMesh:
 		@warning_ignore_start("shadowed_variable_base_class")
 		var transform: Transform3D = curve_obj.sample_baked_with_rotation(distance_along_curve, false)
 		var position: Vector3 = transform.origin
-		@warning_ignore_end("shadowed_variable_base_class")
+		@warning_ignore_restore("shadowed_variable_base_class")
 		# unused
 		# var tangent: Vector3 = -transform.basis.z.normalized()
 		var normal: Vector3 = transform.basis.y.normalized()
