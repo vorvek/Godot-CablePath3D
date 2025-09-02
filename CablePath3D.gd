@@ -2,6 +2,8 @@
 extends Path3D
 class_name CablePath3D
 
+@export var mesh_name: String = "CableMesh"
+
 @export_range(0.001, 1.0, 0.001) var cable_thickness: float = 0.01:
 	set(value):
 		cable_thickness = value
@@ -33,18 +35,20 @@ var _mesh_instance: MeshInstance3D
 var _debug_material: StandardMaterial3D
 
 func _init() -> void:
-	# Create a debug material
 	_debug_material = StandardMaterial3D.new()
-	_debug_material.albedo_color = Color(1, 0, 0)  # Red color for debugging
+	_debug_material.albedo_color = Color(1, 0, 0)
 	_debug_material.metallic = 0.0
 	_debug_material.roughness = 0.5
 	
-	# Create mesh instance
-	_mesh_instance = MeshInstance3D.new()
-	add_child(_mesh_instance)
-	_mesh_instance.name = "CableMesh"
-
 func _ready() -> void:
+	# Find the existing MeshInstance3D or create a new one.
+	# This prevents creating duplicates when the scene loads.
+	_mesh_instance = find_child(mesh_name)
+	if not _mesh_instance:
+		_mesh_instance = MeshInstance3D.new()
+		_mesh_instance.name = mesh_name
+		add_child(_mesh_instance)
+		
 	# Set owner for proper scene serialization in editor
 	if Engine.is_editor_hint() and is_inside_tree():
 		_mesh_instance.owner = get_tree().edited_scene_root
@@ -55,23 +59,24 @@ func _ready() -> void:
 		if curve_obj and not curve_obj.changed.is_connected(_update_cable):
 			curve_obj.changed.connect(_update_cable)
 	
-	# Always update the cable
 	_update_cable()
 
 func _exit_tree() -> void:
-	var curve_obj: Curve3D = get_curve()
-	if curve_obj and curve_obj.changed.is_connected(_update_cable):
-		curve_obj.changed.disconnect(_update_cable)
+	# Disconnect from curve changes to prevent errors
+	if Engine.is_editor_hint():
+		var curve_obj: Curve3D = get_curve()
+		if curve_obj and curve_obj.changed.is_connected(_update_cable):
+			curve_obj.changed.disconnect(_update_cable)
 
 func _update_cable() -> void:
-	if not is_inside_tree():
-		return
-		
-	if not _mesh_instance or not is_instance_valid(_mesh_instance):
-		_mesh_instance = MeshInstance3D.new()
-		add_child(_mesh_instance)
-		_mesh_instance.name = "CableMesh"
-	
+	if not is_instance_valid(_mesh_instance):
+		# If for some reason the mesh instance is not valid, try to find it again.
+		_mesh_instance = find_child("CableMesh")
+		if not is_instance_valid(_mesh_instance):
+			# If still not found, it's an error. We should not create it here.
+			printerr("CablePath3D: MeshInstance3D not found and could not be created.")
+			return
+			
 	var mesh: ArrayMesh = _create_cable_mesh()
 	if mesh:
 		_mesh_instance.mesh = mesh
