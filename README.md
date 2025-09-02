@@ -13,6 +13,8 @@ This tool extends the [https://docs.godotengine.org/en/4.4/classes/class_path3d.
 
 The generation doesn't use CSGPolygon3D, so the results may be a bit funkier than Godot's native CSG extrusion through a path, but I needed loads of arbitrary-shaped cables in my project, and CSG was too slow and cumbersome to work with.
 
+**NOTE:** Don't add child nodes to the CablePath3D node, as they will be deleted when the mesh is regenerated.
+
 This tool is provided as-is, and is intended to be a starting point for further customization. Feel free to modify the code to suit your needs.
 
 ## Licence

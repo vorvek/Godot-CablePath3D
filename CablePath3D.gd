@@ -2,8 +2,6 @@
 extends Path3D
 class_name CablePath3D
 
-@export var mesh_name: String = "CableMesh"
-
 @export_range(0.001, 1.0, 0.001) var cable_thickness: float = 0.01:
 	set(value):
 		cable_thickness = value
@@ -29,7 +27,7 @@ class_name CablePath3D
 	set(value):
 		if value:
 			_update_cable()
-			regenerate_mesh = false # Reset the button
+			regenerate_mesh = false
 
 var _mesh_instance: MeshInstance3D
 var _debug_material: StandardMaterial3D
@@ -41,49 +39,38 @@ func _init() -> void:
 	_debug_material.roughness = 0.5
 	
 func _ready() -> void:
-	# Find the existing MeshInstance3D or create a new one.
-	# This prevents creating duplicates when the scene loads.
-	_mesh_instance = find_child(mesh_name)
-	if not _mesh_instance:
-		_mesh_instance = MeshInstance3D.new()
-		_mesh_instance.name = mesh_name
-		add_child(_mesh_instance)
-		
-	# Set owner for proper scene serialization in editor
-	if Engine.is_editor_hint() and is_inside_tree():
-		_mesh_instance.owner = get_tree().edited_scene_root
-	
-	# Connect to curve changes in editor
-	if Engine.is_editor_hint():
-		var curve_obj: Curve3D = get_curve()
-		if curve_obj and not curve_obj.changed.is_connected(_update_cable):
-			curve_obj.changed.connect(_update_cable)
-	
+	# Always update the cable when the scene is ready.
+	# The cleanup logic is now handled in _update_cable().
 	_update_cable()
 
 func _exit_tree() -> void:
-	# Disconnect from curve changes to prevent errors
+	# Disconnect from curve changes to prevent errors.
 	if Engine.is_editor_hint():
 		var curve_obj: Curve3D = get_curve()
 		if curve_obj and curve_obj.changed.is_connected(_update_cable):
 			curve_obj.changed.disconnect(_update_cable)
 
 func _update_cable() -> void:
-	if not is_instance_valid(_mesh_instance):
-		# If for some reason the mesh instance is not valid, try to find it again.
-		_mesh_instance = find_child(mesh_name)
-		if not is_instance_valid(_mesh_instance):
-			# If still not found, it's an error. We should not create it here.
-			printerr("CablePath3D: MeshInstance3D not found and could not be created.")
-			return
-			
+	# Cleanup any existing children
+	for child in get_children():
+		child.queue_free()
+
+	# Create a new MeshInstance3D to hold the generated mesh.
+	_mesh_instance = MeshInstance3D.new()
+	_mesh_instance.name = "GeneratedMesh"
+	add_child(_mesh_instance)
+
+	# Set owner for proper scene serialization in editor.
+	if Engine.is_editor_hint() and is_inside_tree():
+		_mesh_instance.owner = get_tree().edited_scene_root
+
 	var mesh: ArrayMesh = _create_cable_mesh()
 	if mesh:
 		_mesh_instance.mesh = mesh
 		
 		# Apply material with fallback to debug material
 		if cable_material:
-			# Create a duplicate of the material to avoid shared instances
+			# Create a duplicate of the material to avoid shared instances.
 			var material_instance = cable_material.duplicate()
 			_mesh_instance.material_override = material_instance
 		else:
