@@ -71,7 +71,7 @@ func _exit_tree() -> void:
 func _update_cable() -> void:
 	if not is_instance_valid(_mesh_instance):
 		# If for some reason the mesh instance is not valid, try to find it again.
-		_mesh_instance = find_child("CableMesh")
+		_mesh_instance = find_child(mesh_name)
 		if not is_instance_valid(_mesh_instance):
 			# If still not found, it's an error. We should not create it here.
 			printerr("CablePath3D: MeshInstance3D not found and could not be created.")
