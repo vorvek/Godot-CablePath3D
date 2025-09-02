@@ -17,7 +17,7 @@ class_name CablePath3D
 		path_interval = value
 		_update_cable()
 
-@export_range(0.001, 1.0, 0.001) var path_u_distance: float = 0.1:
+@export_range(0.001, 10.0, 0.001) var path_u_distance: float = 1.0:
 	set(value):
 		path_u_distance = value
 		_update_cable()
@@ -33,11 +33,13 @@ var _mesh_instance: MeshInstance3D
 var _debug_material: StandardMaterial3D
 
 func _init() -> void:
+	# Create a debug material
 	_debug_material = StandardMaterial3D.new()
 	_debug_material.albedo_color = Color(1, 0, 0)  # Red color for debugging
 	_debug_material.metallic = 0.0
 	_debug_material.roughness = 0.5
 	
+	# Create mesh instance
 	_mesh_instance = MeshInstance3D.new()
 	add_child(_mesh_instance)
 	_mesh_instance.name = "CableMesh"
@@ -52,6 +54,8 @@ func _ready() -> void:
 		var curve_obj: Curve3D = get_curve()
 		if curve_obj and not curve_obj.changed.is_connected(_update_cable):
 			curve_obj.changed.connect(_update_cable)
+	
+	# Always update the cable
 	_update_cable()
 
 func _exit_tree() -> void:
@@ -74,12 +78,13 @@ func _update_cable() -> void:
 		
 		# Apply material with fallback to debug material
 		if cable_material:
+			# Create a duplicate of the material to avoid shared instances
 			var material_instance = cable_material.duplicate()
 			_mesh_instance.material_override = material_instance
 		else:
 			_mesh_instance.material_override = _debug_material
 
-# The core mesh generation function
+# Core mesh generation
 func _create_cable_mesh() -> ArrayMesh:
 	var curve_obj: Curve3D = get_curve()
 	if curve_obj == null or curve_obj.get_point_count() < 2:
@@ -104,7 +109,7 @@ func _create_cable_mesh() -> ArrayMesh:
 		@warning_ignore_start("shadowed_variable_base_class")
 		var transform: Transform3D = curve_obj.sample_baked_with_rotation(distance_along_curve, false)
 		var position: Vector3 = transform.origin
-		@warning_ignore_restore("shadowed_variable_base_class")
+		@warning_ignore_end("shadowed_variable_base_class")
 		# unused
 		# var tangent: Vector3 = -transform.basis.z.normalized()
 		var normal: Vector3 = transform.basis.y.normalized()
@@ -118,11 +123,10 @@ func _create_cable_mesh() -> ArrayMesh:
 			var circle_pos: Vector3 = binormal * cos(angle) * cable_thickness + normal * sin(angle) * cable_thickness
 			vertices.append(position + circle_pos)
 			
-			# The vertex normal should be the vector from the center of the circle to the vertex, normalized.
 			var vertex_normal: Vector3 = circle_pos.normalized()
 			normals.append(vertex_normal)
 			
-			uvs.append(Vector2(float(j) / float(circle_resolution), float(i) * path_interval * path_u_distance))
+			uvs.append(Vector2(float(j) / float(circle_resolution), float(i) * path_u_distance))
 	
 	# Generate indices
 	for i in segments:
@@ -155,6 +159,6 @@ func _create_cable_mesh() -> ArrayMesh:
 	
 	return mesh
 
-# Function to manually update the cable (useful if properties change externally)
+# Manually update the cable
 func regenerate_cable() -> void:
 	_update_cable()
