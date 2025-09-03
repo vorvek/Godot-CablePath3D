@@ -9,7 +9,7 @@ Simply drop the .gd file somewhere in your project folder. It will give you acce
 
 ## Usage
 
-This tool extends the [https://docs.godotengine.org/en/4.4/classes/class_path3d.html](Path3D) node, giving you access to all the Path3D point editing features. To create a cable, simply add a new CablePath3D node to your scene, and start adding points to it. You can then customize the cable's appearance using the various properties available in the Inspector. You can force an update by checking the "Regenerate Mesh" chekbox under the Cable Baking section.
+This tool extends the [Path3D](https://docs.godotengine.org/en/4.4/classes/class_path3d.html) node, giving you access to all the Path3D point editing features. To create a cable, simply add a new CablePath3D node to your scene, and start adding points to it. You can then customize the cable's appearance using the various properties available in the Inspector. You can force an update by checking the "Regenerate Mesh" chekbox under the Cable Baking section.
 
 The generation doesn't use CSGPolygon3D, so the results may be a bit funkier than Godot's native CSG extrusion through a path, but I needed loads of arbitrary-shaped cables in my project, and CSG was too slow and cumbersome to work with.
 
