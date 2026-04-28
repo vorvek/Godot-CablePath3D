@@ -2,79 +2,135 @@
 extends Path3D
 class_name CablePath3D
 
+const _GENERATED_MESH_NAME := "GeneratedMesh"
+const _GENERATED_MESH_META := "_cable_path_3d_generated"
+
 @export_range(0.001, 1.0, 0.001) var cable_thickness: float = 0.01:
 	set(value):
-		cable_thickness = value
-		_update_cable()
+		cable_thickness = max(value, 0.001)
+		_request_update()
 
 @export var cable_material: Material:
 	set(value):
 		cable_material = value
-		_update_cable()
+		_request_update()
 
 @export_range(0.001, 1.0, 0.001) var path_interval: float = 0.05:
 	set(value):
-		path_interval = value
-		_update_cable()
+		path_interval = max(value, 0.001)
+		_request_update()
 
 @export_range(0.001, 10.0, 0.001) var path_u_distance: float = 1.0:
 	set(value):
-		path_u_distance = value
-		_update_cable()
+		path_u_distance = max(value, 0.001)
+		_request_update()
+
+@export_range(3, 64, 1) var radial_segments: int = 8:
+	set(value):
+		radial_segments = max(value, 3)
+		_request_update()
 
 @export_group("Cable Baking")
 @export var regenerate_mesh: bool = false:
 	set(value):
 		if value:
-			_update_cable()
-			regenerate_mesh = false
+			_request_update()
+		regenerate_mesh = false
 
 var _mesh_instance: MeshInstance3D
 var _debug_material: StandardMaterial3D
+var _connected_curve: Curve3D
+var _update_queued := false
 
 func _init() -> void:
 	_debug_material = StandardMaterial3D.new()
 	_debug_material.albedo_color = Color(1, 0, 0)
 	_debug_material.metallic = 0.0
 	_debug_material.roughness = 0.5
+
+func _enter_tree() -> void:
+	if not curve_changed.is_connected(_request_update):
+		curve_changed.connect(_request_update)
 	
+	_connect_curve_changed()
+
 func _ready() -> void:
-	# Always update the cable when the scene is ready.
-	# The cleanup logic is now handled in _update_cable().
 	_update_cable()
 
 func _exit_tree() -> void:
-	# Disconnect from curve changes to prevent errors.
-	if Engine.is_editor_hint():
-		var curve_obj: Curve3D = get_curve()
-		if curve_obj and curve_obj.changed.is_connected(_update_cable):
-			curve_obj.changed.disconnect(_update_cable)
+	if curve_changed.is_connected(_request_update):
+		curve_changed.disconnect(_request_update)
+	
+	_disconnect_curve_changed()
+
+func _request_update() -> void:
+	if not is_inside_tree():
+		return
+	
+	if _update_queued:
+		return
+	
+	_update_queued = true
+	call_deferred("_update_cable")
+
+func _connect_curve_changed() -> void:
+	var curve_obj: Curve3D = get_curve()
+	if _connected_curve == curve_obj:
+		return
+	
+	_disconnect_curve_changed()
+	_connected_curve = curve_obj
+	
+	if _connected_curve and not _connected_curve.changed.is_connected(_request_update):
+		_connected_curve.changed.connect(_request_update)
+
+func _disconnect_curve_changed() -> void:
+	if _connected_curve and _connected_curve.changed.is_connected(_request_update):
+		_connected_curve.changed.disconnect(_request_update)
+	
+	_connected_curve = null
 
 func _update_cable() -> void:
-	# Cleanup any existing children
-	for child in get_children():
-		child.queue_free()
-
-	# Create a new MeshInstance3D to hold the generated mesh.
-	_mesh_instance = MeshInstance3D.new()
-	_mesh_instance.name = "GeneratedMesh"
-	add_child(_mesh_instance)
-
-	# Set owner for proper scene serialization in editor.
-	if Engine.is_editor_hint() and is_inside_tree():
-		_mesh_instance.owner = get_tree().edited_scene_root
+	_update_queued = false
+	_connect_curve_changed()
 
 	var mesh: ArrayMesh = _create_cable_mesh()
-	if mesh:
-		_mesh_instance.mesh = mesh
-		
-		# Apply material with fallback to debug material
-		if cable_material:
-			# Create a duplicate of the material to avoid shared instances.
-			var material_instance = cable_material.duplicate()
-			_mesh_instance.material_override = material_instance
-		else:
-			_mesh_instance.material_override = _debug_material
+	if mesh == null:
+		var existing_mesh_instance: MeshInstance3D = _get_existing_mesh_instance()
+		if existing_mesh_instance:
+			existing_mesh_instance.mesh = null
+		return
+	
+	var mesh_instance: MeshInstance3D = _get_or_create_mesh_instance()
+	mesh_instance.mesh = mesh
+	mesh_instance.material_override = cable_material if cable_material else _debug_material
+
+func _get_or_create_mesh_instance() -> MeshInstance3D:
+	_mesh_instance = _get_existing_mesh_instance()
+	if _mesh_instance:
+		return _mesh_instance
+	
+	_mesh_instance = MeshInstance3D.new()
+	_mesh_instance.name = _GENERATED_MESH_NAME
+	_mesh_instance.set_meta(_GENERATED_MESH_META, true)
+	add_child(_mesh_instance)
+	
+	if Engine.is_editor_hint() and is_inside_tree():
+		var edited_scene_root: Node = get_tree().edited_scene_root
+		if edited_scene_root:
+			_mesh_instance.owner = edited_scene_root
+	
+	return _mesh_instance
+
+func _get_existing_mesh_instance() -> MeshInstance3D:
+	if is_instance_valid(_mesh_instance) and _mesh_instance.get_parent() == self:
+		return _mesh_instance
+	
+	_mesh_instance = get_node_or_null(_GENERATED_MESH_NAME) as MeshInstance3D
+	if _mesh_instance:
+		_mesh_instance.set_meta(_GENERATED_MESH_META, true)
+	
+	return _mesh_instance
 
 # Core mesh generation
 func _create_cable_mesh() -> ArrayMesh:
@@ -86,29 +142,25 @@ func _create_cable_mesh() -> ArrayMesh:
 	if total_length <= 0:
 		return null
 	
-	var segments: int = max(1, ceil(total_length / path_interval))
-	var circle_resolution: int = 8 
+	var segments: int = max(1, int(ceil(total_length / max(path_interval, 0.001))))
+	var circle_resolution: int = max(radial_segments, 3)
 	
 	var vertices: PackedVector3Array = PackedVector3Array()
 	var normals: PackedVector3Array = PackedVector3Array()
 	var uvs: PackedVector2Array = PackedVector2Array()
 	var indices: PackedInt32Array = PackedInt32Array()
 	
-	for i in segments + 1:
+	for i in range(segments + 1):
 		var t: float = float(i) / segments
 		var distance_along_curve: float = t * total_length
 		
-		@warning_ignore_start("shadowed_variable_base_class")
-		var transform: Transform3D = curve_obj.sample_baked_with_rotation(distance_along_curve, false)
-		var position: Vector3 = transform.origin
-		@warning_ignore_restore("shadowed_variable_base_class")
-		# unused
-		# var tangent: Vector3 = -transform.basis.z.normalized()
-		var normal: Vector3 = transform.basis.y.normalized()
-		var binormal: Vector3 = transform.basis.x.normalized()
+		var sample_transform: Transform3D = curve_obj.sample_baked_with_rotation(distance_along_curve, false)
+		var position: Vector3 = sample_transform.origin
+		var normal: Vector3 = sample_transform.basis.y.normalized()
+		var binormal: Vector3 = sample_transform.basis.x.normalized()
 		
 		# Generate circle vertices at this point
-		for j in circle_resolution:
+		for j in range(circle_resolution):
 			var angle: float = TAU * float(j) / float(circle_resolution)
 			
 			# Parametric equation for a circle in 3D space
@@ -121,8 +173,8 @@ func _create_cable_mesh() -> ArrayMesh:
 			uvs.append(Vector2(float(j) / float(circle_resolution), float(i) * path_u_distance))
 	
 	# Generate indices
-	for i in segments:
-		for j in circle_resolution:
+	for i in range(segments):
+		for j in range(circle_resolution):
 			var current: int = i * circle_resolution + j
 			var next: int = current + circle_resolution
 			var next_vertex: int = i * circle_resolution + ((j + 1) % circle_resolution)
