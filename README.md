@@ -7,7 +7,7 @@ A simple Editor tool for Godot 4 that allows the user to generate cables, tubes 
 
 For regular Godot projects, copy `CablePath3D.gd` somewhere in your project folder. It will give you access to a new node called **CablePath3D**.
 
-For Godot .NET projects, copy `csharp/CablePath3D.cs` instead. Use only one implementation in the same project, as both versions register the same **CablePath3D** node name.
+For Godot .NET projects, copy `CablePath3D.cs` instead. Use only one implementation in the same project, as both versions register the same **CablePath3D** node name.
 
 ## Usage
 
