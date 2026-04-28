@@ -20,4 +20,4 @@ The generation doesn't use CSGPolygon3D, so the results may be a bit funkier tha
 This tool is provided as-is, and is intended to be a starting point for further customization. Feel free to modify the code to suit your needs.
 
 ## License
-This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
