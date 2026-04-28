@@ -11,9 +11,23 @@ For Godot .NET projects, copy `CablePath3D.cs` instead. Use only one implementat
 
 ## Usage
 
-This tool extends the [Path3D](https://docs.godotengine.org/en/stable/classes/class_path3d.html) node, giving you access to all the Path3D point editing features. To create a cable, simply add a new CablePath3D node to your scene, and start adding points to it. The cable updates when the path or exported properties change. You can customize the cable's appearance with the Inspector properties, including thickness, material, path interval, UV distance, and radial segments. You can force an update by checking the "Regenerate Mesh" checkbox under the Cable Baking section.
+This tool extends the [Path3D](https://docs.godotengine.org/en/stable/classes/class_path3d.html) node, giving you access to all the Path3D point editing features. To create a cable, simply add a new CablePath3D node to your scene, and start adding points to it. The cable updates when the path or exported properties change. You can force an update by checking the "Regenerate Mesh" checkbox under the Cable Baking section.
 
-The generation doesn't use CSGPolygon3D, so the results may be a bit funkier than Godot's native CSG extrusion through a path, but I needed loads of arbitrary-shaped cables in my project, and CSG was too slow and cumbersome to work with.
+## Generation
+
+CablePath3D generates a regular `ArrayMesh`; it does not use `CSGPolygon3D` or any CSG nodes. The script samples the baked `Curve3D` along the path, creates a circular ring of vertices at each sample point, then connects neighboring rings with triangles to form an open tube.
+
+The main Inspector properties control the mesh like this:
+
+- `Cable Thickness`: the tube radius.
+- `Cable Material`: the material applied to the generated mesh. If empty, the tool uses a red debug material.
+- `Path Interval`: approximate distance between generated rings along the curve. Lower values make smoother cables with more vertices.
+- `Path U Distance`: vertical UV tiling step per generated ring.
+- `Radial Segments`: number of vertices around each ring. Higher values make rounder cables with more vertices.
+
+The generated tube follows the baked curve rotation using Godot's `sample_baked_with_rotation()` behavior. It is intentionally uncapped at both ends, which keeps the mesh simple and fast for cable, tube, and pipe runs where the ends are usually hidden or covered by other scene geometry.
+
+The GDScript and C# versions generate the same mesh. The C# version is provided for Godot .NET projects that want the same tool behavior with faster script execution.
 
 **NOTE:** The generated child node is named `GeneratedMesh` and is managed by the script. You can add your own child nodes under CablePath3D, but direct edits to `GeneratedMesh` may be replaced when the mesh is regenerated.
 
