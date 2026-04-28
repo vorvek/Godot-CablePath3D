@@ -29,7 +29,7 @@ The generated tube follows the baked curve rotation using Godot's `sample_baked_
 
 The GDScript and C# versions generate the same mesh. The C# version is provided for Godot .NET projects that want the same tool behavior with faster script execution.
 
-**NOTE:** The generated child node is named `GeneratedMesh` and is managed by the script. You can add your own child nodes under CablePath3D, but direct edits to `GeneratedMesh` may be replaced when the mesh is regenerated.
+**NOTE:** The generated child node is named `GeneratedMesh` and is managed by the script. You can add your own child nodes under CablePath3D, but the `mesh` and `material_override` on `GeneratedMesh` will be overwritten when the mesh is regenerated.
 
 This tool is provided as-is, and is intended to be a starting point for further customization. Feel free to modify the code to suit your needs.
 
